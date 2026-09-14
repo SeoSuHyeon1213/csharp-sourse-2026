@@ -1,4 +1,8 @@
-﻿using Day07_HTTP;
+﻿using System;
+using System.Net.Http;
+using Newtonsoft.Json;
+using Xunit.Abstractions;
+using Day07_HTTP;
 //using NUnit.Framework;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,9 +21,12 @@ public class PokemonRepositoryTests
     public Mock<IPokemonApiDataSource<Pokemon>> MockDataSource { get; }
     private readonly PokemonRepository _repository;
 
-    public PokemonRepositoryTests()
+    private readonly ITestOutputHelper _output;
+
+    public PokemonRepositoryTests(ITestOutputHelper output)
     {
-        // 1. Arrange: IPokemonApiDataSource의 Mock 객체 생성 및 Repository 주입
+        _output = output;
+
         MockDataSource = new Mock<IPokemonApiDataSource<Pokemon>>();
         _repository = new PokemonRepository(MockDataSource.Object);
     }
@@ -63,6 +70,30 @@ public class PokemonRepositoryTests
 
         // Verification: Mock 메서드가 정확히 1번 호출되었는지 검증
         MockDataSource.Verify(ds => ds.GetByNameAsync("pikachu"), Times.Once);
+        // 모킹한 데이터 출력
+        _output.WriteLine("=== 모킹 데이터 ===");
+        _output.WriteLine(
+            JsonConvert.SerializeObject(result, Formatting.Indented)
+        );
+
+// 실제 웹 API에서 가져온 데이터
+        using var httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
+        var realDataSource = new PokemonApiDataSource(httpClient);
+        var realRepository = new PokemonRepository(realDataSource);
+
+        var realResult =
+            await realRepository.GetPokemonByNameAsync("pikachu");
+
+        _output.WriteLine("=== 실제 웹 API 데이터 ===");
+        _output.WriteLine(
+            JsonConvert.SerializeObject(realResult, Formatting.Indented)
+        );
+
+        Assert.NotNull(realResult);
     }
 
     [Fact]
